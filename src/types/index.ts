@@ -197,16 +197,25 @@ export interface ValidationRule {
   field?: string;
 }
 
+export interface KnowledgeAttachment {
+  name: string;
+  size: string;
+  url?: string;
+}
+
 export interface KnowledgeItem {
   id: string;
   title: string;
   category: string;
   type: 'rule' | 'case' | 'specification' | 'faq';
   content: string;
+  author: string;
   views: number;
+  likes: number;
   createdAt: string;
   updatedAt: string;
   tags: string[];
+  attachments?: KnowledgeAttachment[];
 }
 
 export interface CategoryNode {

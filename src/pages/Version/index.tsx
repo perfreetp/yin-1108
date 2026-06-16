@@ -18,107 +18,36 @@ import {
   Tag,
   Calendar,
   User,
+  X,
+  ArrowRight,
+  Printer,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import StatusBadge from '@/components/StatusBadge';
-import { announcements } from '@/data/knowledge';
+import { useVersionStore } from '@/store/versionStore';
 import { cn } from '@/lib/utils';
 
 export default function Version() {
   const navigate = useNavigate();
+  const {
+    versionItems,
+    announcements,
+    successMessage,
+    publishVersion,
+    rollbackVersion,
+    openVersionModal,
+    closeVersionModal,
+    showVersionModal,
+    selectedVersion,
+    downloadVersion,
+    openCompareModal,
+    showCompareModal,
+    compareVersions,
+    closeCompareModal,
+  } = useVersionStore();
+
   const [activeTab, setActiveTab] = useState<'versions' | 'announcements'>('versions');
   const [expandedItems, setExpandedItems] = useState<string[]>(['item-001']);
-
-  const itemVersions = [
-    {
-      id: 'item-001',
-      name: '企业设立登记',
-      code: 'XK-SC-001',
-      department: '省市场监督管理局',
-      currentVersion: 'v2.1',
-      status: 'published',
-      versions: [
-        {
-          id: 'ver-003',
-          version: 'v2.1',
-          status: 'published',
-          publishDate: '2025-03-20',
-          createdBy: '李四',
-          createdAt: '2025-03-18 14:00:00',
-          changes: ['调整承诺办理时限', '更正联系方式信息'],
-          size: '156KB',
-        },
-        {
-          id: 'ver-002',
-          version: 'v2.0',
-          status: 'superseded',
-          publishDate: '2025-02-28',
-          createdBy: '李四',
-          createdAt: '2025-02-25 10:00:00',
-          changes: ['优化受理条件描述', '新增情形化要素', '补充申请材料说明'],
-          size: '152KB',
-        },
-        {
-          id: 'ver-001',
-          version: 'v1.0',
-          status: 'superseded',
-          publishDate: '2025-02-01',
-          createdBy: '张三',
-          createdAt: '2025-01-25 09:00:00',
-          changes: ['初始版本发布'],
-          size: '148KB',
-        },
-      ],
-    },
-    {
-      id: 'item-002',
-      name: '食品经营许可证核发',
-      code: 'XK-SC-002',
-      department: '省市场监督管理局',
-      currentVersion: 'v1.3',
-      status: 'reviewing',
-      versions: [
-        {
-          id: 'ver-004',
-          version: 'v1.3',
-          status: 'draft',
-          createdBy: '王五',
-          createdAt: '2025-03-22 16:45:00',
-          changes: ['新增材料要求', '调整办理流程'],
-          size: '145KB',
-        },
-        {
-          id: 'ver-003',
-          version: 'v1.2',
-          status: 'published',
-          publishDate: '2025-03-15',
-          createdBy: '王五',
-          createdAt: '2025-03-10 14:30:00',
-          changes: ['修正法定依据引用'],
-          size: '142KB',
-        },
-      ],
-    },
-    {
-      id: 'item-003',
-      name: '户口迁移审批',
-      code: 'XK-GA-001',
-      department: '省公安厅',
-      currentVersion: 'v0.8',
-      status: 'draft',
-      versions: [
-        {
-          id: 'ver-001',
-          version: 'v0.8',
-          status: 'draft',
-          createdBy: '赵六',
-          createdAt: '2025-03-21 11:20:00',
-          changes: ['补充办理材料信息', '完善流程说明'],
-          size: '138KB',
-        },
-      ],
-    },
-  ];
 
   const toggleExpand = (id: string) => {
     setExpandedItems((prev) =>
@@ -126,8 +55,17 @@ export default function Version() {
     );
   };
 
+  const isExpanded = (id: string) => expandedItems.includes(id);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {successMessage && (
+        <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl animate-pulse">
+          <CheckCircle2 className="w-5 h-5 text-green-600" />
+          <p className="text-green-800 font-medium">{successMessage}</p>
+        </div>
+      )}
+
       <div className="grid grid-cols-4 gap-5">
         <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
           <div className="flex items-center gap-4">
@@ -136,7 +74,9 @@ export default function Version() {
             </div>
             <div>
               <p className="text-sm text-slate-500">总版本数</p>
-              <p className="text-2xl font-bold text-slate-800">186</p>
+              <p className="text-2xl font-bold text-slate-800">
+                {versionItems.reduce((sum, item) => sum + item.versions.length, 0)}
+              </p>
             </div>
           </div>
         </div>
@@ -147,7 +87,12 @@ export default function Version() {
             </div>
             <div>
               <p className="text-sm text-slate-500">已发布版本</p>
-              <p className="text-2xl font-bold text-slate-800">156</p>
+              <p className="text-2xl font-bold text-slate-800">
+                {versionItems.reduce(
+                  (sum, item) => sum + item.versions.filter((v) => v.status === 'published').length,
+                  0
+                )}
+              </p>
             </div>
           </div>
         </div>
@@ -158,7 +103,12 @@ export default function Version() {
             </div>
             <div>
               <p className="text-sm text-slate-500">待发布版本</p>
-              <p className="text-2xl font-bold text-slate-800">24</p>
+              <p className="text-2xl font-bold text-slate-800">
+                {versionItems.reduce(
+                  (sum, item) => sum + item.versions.filter((v) => v.status === 'draft').length,
+                  0
+                )}
+              </p>
             </div>
           </div>
         </div>
@@ -202,7 +152,7 @@ export default function Version() {
                 发布公告
               </button>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 py-2">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
@@ -224,182 +174,172 @@ export default function Version() {
 
         {activeTab === 'versions' ? (
           <div className="divide-y divide-slate-100">
-            {itemVersions.map((item) => {
-              const isExpanded = expandedItems.includes(item.id);
-
-              return (
-                <div key={item.id}>
-                  <div
-                    className="p-5 hover:bg-slate-50 cursor-pointer transition-colors"
-                    onClick={() => toggleExpand(item.id)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <button className="p-1 text-slate-400 hover:text-slate-600">
-                          {isExpanded ? (
-                            <ChevronDown className="w-5 h-5" />
-                          ) : (
-                            <ChevronRight className="w-5 h-5" />
-                          )}
-                        </button>
-                        <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                          <FileText className="w-5 h-5 text-blue-500" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-medium text-slate-800">{item.name}</h4>
-                            <StatusBadge status={item.status} size="sm" />
-                          </div>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            {item.code} · {item.department} · 当前版本 {item.currentVersion}
-                          </p>
-                        </div>
+            {versionItems.map((item) => (
+              <div key={item.id}>
+                <div
+                  className="p-5 hover:bg-slate-50 cursor-pointer transition-colors"
+                  onClick={() => toggleExpand(item.id)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <button className="p-1 text-slate-400 hover:text-slate-600">
+                        {isExpanded(item.id) ? (
+                          <ChevronDown className="w-5 h-5" />
+                        ) : (
+                          <ChevronRight className="w-5 h-5" />
+                        )}
+                      </button>
+                      <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                        <FileText className="w-5 h-5 text-blue-500" />
                       </div>
-
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm text-slate-500">
-                          共 {item.versions.length} 个版本
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/version/compare`);
-                            }}
-                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                            title="版本对比"
-                          >
-                            <Diff className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/version/${item.id}`);
-                            }}
-                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                            title="查看详情"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium text-slate-800">{item.name}</h4>
+                          <StatusBadge status={item.status as any} size="sm" />
                         </div>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {item.code} · {item.department} · 当前版本 {item.currentVersion}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-slate-500">
+                        共 {item.versions.length} 个版本
+                      </span>
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => openCompareModal('ver-001', 'ver-003')}
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                          title="版本对比"
+                        >
+                          <Diff className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => navigate(`/item-library/${item.id}`)}
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                          title="查看详情"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
                   </div>
+                </div>
 
-                  {isExpanded && (
-                    <div className="bg-slate-50 border-t border-slate-100">
-                      <div className="relative pl-8 pr-5 py-4">
-                        <div className="absolute left-9 top-4 bottom-4 w-0.5 bg-slate-200"></div>
-                        {item.versions.map((ver, idx) => (
+                {isExpanded(item.id) && (
+                  <div className="bg-slate-50 border-t border-slate-100">
+                    <div className="relative pl-10 pr-5 py-4">
+                      <div className="absolute left-11 top-4 bottom-4 w-0.5 bg-slate-200"></div>
+                      {item.versions.map((ver, idx) => (
+                        <div
+                          key={ver.id}
+                          className={cn(
+                            'relative pl-6',
+                            idx < item.versions.length - 1 && 'pb-5'
+                          )}
+                        >
                           <div
-                            key={ver.id}
                             className={cn(
-                              'relative pl-6 pb-4 last:pb-0',
-                              idx < item.versions.length - 1 && 'pb-5'
+                              'absolute left-0 top-1 w-4 h-4 rounded-full border-4 border-white shadow-sm z-10',
+                              ver.status === 'published'
+                                ? 'bg-green-500'
+                                : ver.status === 'superseded'
+                                ? 'bg-slate-400'
+                                : 'bg-amber-500'
                             )}
-                          >
-                            <div
-                              className={cn(
-                                'absolute left-0 top-1 w-4 h-4 rounded-full border-4 border-white shadow-sm',
-                                ver.status === 'published'
-                                  ? 'bg-green-500'
-                                  : ver.status === 'superseded'
-                                  ? 'bg-slate-400'
-                                  : 'bg-amber-500'
-                              )}
-                            ></div>
-                            <div className="bg-white rounded-xl p-4 border border-slate-200 hover:border-blue-200 hover:shadow-sm transition-all">
-                              <div className="flex items-start justify-between">
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <Tag className="w-4 h-4 text-blue-500" />
-                                    <span className="font-semibold text-slate-800">
-                                      {ver.version}
+                          ></div>
+                          <div className="bg-white rounded-xl p-4 border border-slate-200 hover:border-blue-200 hover:shadow-sm transition-all">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <Tag className="w-4 h-4 text-blue-500" />
+                                  <span className="font-semibold text-slate-800">
+                                    {ver.version}
+                                  </span>
+                                  <StatusBadge status={ver.status as any} size="sm" />
+                                  {idx === 0 && ver.status === 'published' && (
+                                    <span className="px-2 py-0.5 bg-blue-100 text-blue-600 text-xs font-medium rounded">
+                                      当前版本
                                     </span>
-                                    <StatusBadge status={ver.status} size="sm" />
-                                    {idx === 0 && ver.status === 'published' && (
-                                      <span className="px-2 py-0.5 bg-blue-100 text-blue-600 text-xs font-medium rounded">
-                                        当前版本
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="mt-2 flex items-center gap-4 text-xs text-slate-500">
-                                    <div className="flex items-center gap-1">
-                                      <User className="w-3.5 h-3.5" />
-                                      {ver.createdBy}
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                      <Calendar className="w-3.5 h-3.5" />
-                                      {ver.createdAt}
-                                    </div>
-                                    {ver.publishDate && (
-                                      <div className="flex items-center gap-1">
-                                        <CheckCircle2 className="w-3.5 h-3.5" />
-                                        发布于 {ver.publishDate}
-                                      </div>
-                                    )}
-                                  </div>
+                                  )}
                                 </div>
-
-                                <div className="flex items-center gap-1">
-                                  {ver.status === 'draft' && (
-                                    <button
-                                      onClick={() => {}}
-                                      className="flex items-center gap-1 px-3 py-1.5 text-xs text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
-                                    >
-                                      <Send className="w-3.5 h-3.5" />
-                                      发布
-                                    </button>
+                                <div className="mt-2 flex items-center gap-4 text-xs text-slate-500">
+                                  <div className="flex items-center gap-1">
+                                    <User className="w-3.5 h-3.5" />
+                                    {ver.createdBy}
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Calendar className="w-3.5 h-3.5" />
+                                    {ver.createdAt}
+                                  </div>
+                                  {ver.publishDate && (
+                                    <div className="flex items-center gap-1">
+                                      <CheckCircle2 className="w-3.5 h-3.5" />
+                                      发布于 {ver.publishDate}
+                                    </div>
                                   )}
-                                  {ver.status !== 'draft' && (
-                                    <button
-                                      onClick={() => {}}
-                                      className="flex items-center gap-1 px-3 py-1.5 text-xs text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
-                                    >
-                                      <RotateCcw className="w-3.5 h-3.5" />
-                                      回退
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => {}}
-                                    className="flex items-center gap-1 px-3 py-1.5 text-xs text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
-                                  >
-                                    <Eye className="w-3.5 h-3.5" />
-                                    查看
-                                  </button>
-                                  <button
-                                    onClick={() => {}}
-                                    className="flex items-center gap-1 px-3 py-1.5 text-xs text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
-                                  >
-                                    <Download className="w-3.5 h-3.5" />
-                                    下载
-                                  </button>
                                 </div>
                               </div>
 
-                              <div className="mt-3 pt-3 border-t border-slate-100">
-                                <p className="text-xs text-slate-500 mb-2">变更内容：</p>
-                                <ul className="space-y-1">
-                                  {ver.changes.map((change, i) => (
-                                    <li
-                                      key={i}
-                                      className="flex items-start gap-2 text-sm text-slate-600"
-                                    >
-                                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 flex-shrink-0"></span>
-                                      {change}
-                                    </li>
-                                  ))}
-                                </ul>
+                              <div className="flex items-center gap-1">
+                                {ver.status === 'draft' && (
+                                  <button
+                                    onClick={() => publishVersion(item.id, ver.id)}
+                                    className="flex items-center gap-1 px-3 py-1.5 text-xs text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+                                  >
+                                    <Send className="w-3.5 h-3.5" />
+                                    发布
+                                  </button>
+                                )}
+                                {ver.status !== 'draft' && (
+                                  <button
+                                    onClick={() => rollbackVersion(item.id, ver.id)}
+                                    className="flex items-center gap-1 px-3 py-1.5 text-xs text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                                  >
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                    回退到此版本
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => openVersionModal(ver)}
+                                  className="flex items-center gap-1 px-3 py-1.5 text-xs text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                  查看
+                                </button>
+                                <button
+                                  onClick={() => downloadVersion(item.id, ver.id)}
+                                  className="flex items-center gap-1 px-3 py-1.5 text-xs text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                  下载
+                                </button>
                               </div>
                             </div>
+
+                            <div className="mt-3 pt-3 border-t border-slate-100">
+                              <p className="text-xs text-slate-500 mb-2">变更内容：</p>
+                              <ul className="space-y-1">
+                                {ver.changes.map((change, i) => (
+                                  <li
+                                    key={i}
+                                    className="flex items-start gap-2 text-sm text-slate-600"
+                                  >
+                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 flex-shrink-0"></span>
+                                    {change}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      ))}
                     </div>
-                  )}
-                </div>
-              );
-            })}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
@@ -430,20 +370,29 @@ export default function Version() {
                       )}
                     </div>
                     <div>
-                      <h4 className="font-medium text-slate-800">{ann.title}</h4>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-medium text-slate-800">{ann.title}</h4>
+                        {ann.version && (
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded">
+                            {ann.version}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-slate-500 mt-1 line-clamp-2">
                         {ann.content}
                       </p>
                       <div className="mt-2 flex items-center gap-4 text-xs text-slate-400">
                         <span>{ann.publisher}</span>
                         <span>{ann.publishDate}</span>
-                        {ann.version && <span>版本：{ann.version}</span>}
+                        {ann.attachments && ann.attachments.length > 0 && (
+                          <span>{ann.attachments.length}个附件</span>
+                        )}
                       </div>
                     </div>
                   </div>
                   <button className="text-blue-600 text-sm flex items-center gap-1">
                     查看详情
-                    <ChevronRight className="w-4 h-4" />
+                    <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -451,6 +400,162 @@ export default function Version() {
           </div>
         )}
       </div>
+
+      {showVersionModal && selectedVersion && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                  <GitBranch className="w-5 h-5 text-blue-500" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-800">
+                    版本详情 - {selectedVersion.version}
+                  </h3>
+                  <p className="text-sm text-slate-500">
+                    {selectedVersion.createdBy} · {selectedVersion.createdAt}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={closeVersionModal}
+                className="p-1 text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-6 space-y-5">
+              <div>
+                <h4 className="text-sm font-semibold text-slate-700 mb-3">版本状态</h4>
+                <StatusBadge status={selectedVersion.status as any} />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-slate-700 mb-3">变更内容</h4>
+                <ul className="space-y-2">
+                  {selectedVersion.changes.map((change, i) => (
+                    <li
+                      key={i}
+                      className="flex items-start gap-2 p-3 bg-slate-50 rounded-lg"
+                    >
+                      <span className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs flex-shrink-0">
+                        {i + 1}
+                      </span>
+                      <span className="text-slate-700">{change}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-slate-50 rounded-lg">
+                  <p className="text-xs text-slate-500 mb-1">创建人</p>
+                  <p className="text-sm text-slate-800 font-medium">
+                    {selectedVersion.createdBy}
+                  </p>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-lg">
+                  <p className="text-xs text-slate-500 mb-1">创建时间</p>
+                  <p className="text-sm text-slate-800 font-medium">
+                    {selectedVersion.createdAt}
+                  </p>
+                </div>
+                {selectedVersion.publishDate && (
+                  <div className="p-4 bg-green-50 rounded-lg">
+                    <p className="text-xs text-green-600 mb-1">发布时间</p>
+                    <p className="text-sm text-green-800 font-medium">
+                      {selectedVersion.publishDate}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200">
+              <button
+                onClick={closeVersionModal}
+                className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                关闭
+              </button>
+              <button
+                onClick={() => {
+                  window.print();
+                }}
+                className="flex items-center gap-2 px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                <Printer className="w-4 h-4" />
+                打印
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCompareModal && compareVersions && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                <Diff className="w-5 h-5 text-blue-500" />
+                版本对比
+              </h3>
+              <button
+                onClick={closeCompareModal}
+                className="p-1 text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <h4 className="font-semibold text-slate-800 mb-2">版本 v1.0</h4>
+                  <p className="text-sm text-slate-500 mb-4">2025-02-01 发布</p>
+                  <div className="space-y-2 text-sm">
+                    <div className="p-3 bg-white rounded-lg border border-slate-200">
+                      <p className="text-slate-500 text-xs mb-1">承诺时限</p>
+                      <p className="font-medium">5 个工作日</p>
+                    </div>
+                    <div className="p-3 bg-white rounded-lg border border-slate-200">
+                      <p className="text-slate-500 text-xs mb-1">申请材料</p>
+                      <p className="font-medium">4 项</p>
+                    </div>
+                    <div className="p-3 bg-white rounded-lg border border-red-200 bg-red-50">
+                      <p className="text-red-600 text-xs mb-1">- 已删除</p>
+                      <p className="font-medium text-red-700">咨询电话：020-12345678</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                  <h4 className="font-semibold text-blue-800 mb-2">版本 v2.1</h4>
+                  <p className="text-sm text-blue-600 mb-4">2025-03-20 发布（当前版本）</p>
+                  <div className="space-y-2 text-sm">
+                    <div className="p-3 bg-white rounded-lg border border-green-200 bg-green-50">
+                      <p className="text-green-600 text-xs mb-1">+ 已修改</p>
+                      <p className="font-medium text-green-700">承诺时限：3 个工作日</p>
+                    </div>
+                    <div className="p-3 bg-white rounded-lg border border-green-200 bg-green-50">
+                      <p className="text-green-600 text-xs mb-1">+ 已新增</p>
+                      <p className="font-medium text-green-700">申请材料：6 项</p>
+                    </div>
+                    <div className="p-3 bg-white rounded-lg border border-slate-200">
+                      <p className="text-slate-500 text-xs mb-1">咨询电话</p>
+                      <p className="font-medium">020-87654321</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200">
+              <button
+                onClick={closeCompareModal}
+                className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
