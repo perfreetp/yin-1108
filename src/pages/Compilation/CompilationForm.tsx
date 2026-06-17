@@ -44,7 +44,7 @@ const steps = [
 export default function CompilationForm() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentItem, fetchItemDetail, saveItem, validateItem, validationResult } = useItemStore();
+  const { currentItem, fetchItemDetail, saveItem, createItem, updateItemStatus, validateItem, validationResult } = useItemStore();
   const [activeStep, setActiveStep] = useState('basic');
   const [formData, setFormData] = useState<ServiceItemDetail | null>(null);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -246,7 +246,13 @@ export default function CompilationForm() {
 
   const handleSave = () => {
     if (!formData) return;
-    saveItem(formData);
+    if (isNew) {
+      const created = createItem(formData);
+      setFormData(created);
+      navigate('/compilation', { replace: true });
+    } else {
+      saveItem(formData);
+    }
     setSaveMessage('保存成功！');
     setTimeout(() => setSaveMessage(''), 2000);
   };
@@ -258,10 +264,15 @@ export default function CompilationForm() {
       alert('存在校验错误，请先修正后再提交');
       return;
     }
-    handleSave();
-    updateField('status', 'reviewing');
+    if (isNew) {
+      const created = createItem({ ...formData, status: 'reviewing', progress: 85 });
+      updateItemStatus(created.id, 'reviewing');
+    } else {
+      saveItem({ ...formData, status: 'reviewing', progress: 85 });
+      updateItemStatus(formData.id, 'reviewing');
+    }
     alert('已成功提交审校！');
-    navigate('/review');
+    navigate('/review', { replace: true });
   };
 
   const applyTemplate = (templateId: string) => {

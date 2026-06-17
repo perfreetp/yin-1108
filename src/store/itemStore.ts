@@ -1,9 +1,18 @@
 import { create } from 'zustand';
-import type { ServiceItem, ServiceItemDetail, ItemStatus, ItemLevel, ValidationResult, ValidationIssue } from '@/types';
-import { serviceItems, mockItemDetail, getItemDetail } from '@/data/items';
+import type {
+  ServiceItem,
+  ServiceItemDetail,
+  ItemStatus,
+  ItemLevel,
+  ValidationResult,
+  ValidationIssue,
+  ReviewRecord,
+} from '@/types';
+import { serviceItems, itemDetailsMap, getItemDetail } from '@/data/items';
 
 interface ItemState {
   items: ServiceItem[];
+  itemDetails: Record<string, ServiceItemDetail>;
   currentItem: ServiceItemDetail | null;
   loading: boolean;
   filters: {
@@ -14,6 +23,7 @@ interface ItemState {
     level?: ItemLevel;
   };
   validationResult: ValidationResult | null;
+
   setItems: (items: ServiceItem[]) => void;
   setCurrentItem: (item: ServiceItemDetail | null) => void;
   setFilters: (filters: Partial<ItemState['filters']>) => void;
@@ -21,12 +31,22 @@ interface ItemState {
   fetchItemDetail: (id: string) => void;
   updateItemStatus: (id: string, status: ItemStatus) => void;
   saveItem: (item: Partial<ServiceItemDetail>) => void;
+  createItem: (item: Partial<ServiceItemDetail>) => ServiceItemDetail;
+  addReviewRecord: (itemId: string, record: ReviewRecord) => void;
+  updateItemVersion: (
+    id: string,
+    newVersion: string,
+    newStatus: ItemStatus,
+    publishDate?: string
+  ) => void;
   validateItem: (item: ServiceItemDetail) => void;
   getFilteredItems: () => ServiceItem[];
+  getItemById: (id: string) => ServiceItemDetail | undefined;
 }
 
 export const useItemStore = create<ItemState>((set, get) => ({
   items: serviceItems,
+  itemDetails: { ...itemDetailsMap },
   currentItem: null,
   loading: false,
   filters: {},
@@ -34,40 +54,300 @@ export const useItemStore = create<ItemState>((set, get) => ({
 
   setItems: (items) => set({ items }),
   setCurrentItem: (item) => set({ currentItem: item }),
-  setFilters: (filters) => set((state) => ({ filters: { ...state.filters, ...filters } })),
+  setFilters: (filters) =>
+    set((state) => ({ filters: { ...state.filters, ...filters } })),
 
   fetchItems: () => {
     set({ loading: true });
     setTimeout(() => {
-      set({ items: serviceItems, loading: false });
+      set((state) => ({
+        items: Object.values(state.itemDetails).map(
+          ({
+            id,
+            code,
+            name,
+            category,
+            categoryId,
+            department,
+            departmentId,
+            level,
+            status,
+            templateId,
+            templateName,
+            standardSource,
+            createdAt,
+            updatedAt,
+            createdBy,
+            updatedBy,
+            currentVersion,
+            progress,
+            parentId,
+            parentName,
+          }) => ({
+            id,
+            code,
+            name,
+            category,
+            categoryId,
+            department,
+            departmentId,
+            level,
+            status,
+            templateId,
+            templateName,
+            standardSource,
+            createdAt,
+            updatedAt,
+            createdBy,
+            updatedBy,
+            currentVersion,
+            progress,
+            parentId,
+            parentName,
+          })
+        ),
+        loading: false,
+      }));
     }, 300);
   },
 
   fetchItemDetail: (id) => {
     set({ loading: true });
     setTimeout(() => {
-      const item = getItemDetail(id);
-      set({ currentItem: item, loading: false });
-    }, 300);
+      set((state) => {
+        const cached = state.itemDetails[id];
+        if (cached) {
+          return { currentItem: cached, loading: false };
+        }
+        const fresh = getItemDetail(id);
+        return {
+          currentItem: fresh,
+          itemDetails: { ...state.itemDetails, [id]: fresh },
+          loading: false,
+        };
+      });
+    }, 200);
   },
 
   updateItemStatus: (id, status) => {
-    set((state) => ({
-      items: state.items.map((item) =>
-        item.id === id ? { ...item, status, updatedAt: new Date().toLocaleString() } : item
-      ),
-    }));
+    const now = new Date().toLocaleString();
+    set((state) => {
+      const newDetails = { ...state.itemDetails };
+      if (newDetails[id]) {
+        newDetails[id] = { ...newDetails[id], status, updatedAt: now };
+      }
+      const newItems = state.items.map((item) =>
+        item.id === id ? { ...item, status, updatedAt: now } : item
+      );
+      return {
+        items: newItems,
+        itemDetails: newDetails,
+        currentItem:
+          state.currentItem?.id === id
+            ? { ...state.currentItem, status, updatedAt: now }
+            : state.currentItem,
+      };
+    });
   },
 
   saveItem: (item) => {
     set((state) => {
-      if (!state.currentItem) return state;
-      const updated = { ...state.currentItem, ...item, updatedAt: new Date().toLocaleString() };
+      if (!state.currentItem && !item.id) return state;
+      const id = item.id || state.currentItem!.id;
+      const updatedAt = new Date().toLocaleString();
+
+      const updated = {
+        ...(state.currentItem || state.itemDetails[id] || getItemDetail(id)),
+        ...item,
+        id,
+        updatedAt,
+      };
+
+      const newDetails = { ...state.itemDetails, [id]: updated };
+      const newItems = state.items.map((i) => {
+        if (i.id !== id) return i;
+        return {
+          ...i,
+          ...item,
+          id,
+          updatedAt,
+          name: updated.name,
+          code: updated.code,
+          department: updated.department,
+          category: updated.category,
+          categoryId: updated.categoryId,
+          status: updated.status,
+          currentVersion: updated.currentVersion,
+        };
+      });
+
       return {
         currentItem: updated,
-        items: state.items.map((i) =>
-          i.id === updated.id ? { ...i, ...item, updatedAt: new Date().toLocaleString() } : i
-        ),
+        itemDetails: newDetails,
+        items: newItems,
+      };
+    });
+  },
+
+  createItem: (item) => {
+    const id = 'item-' + String(Date.now()).slice(-6);
+    const now = new Date().toLocaleString();
+    const base: ServiceItemDetail = {
+      id,
+      code: item.code || ('XK-ZZ-' + String(Math.floor(Math.random() * 9000) + 1000)),
+      name: item.name || '新建事项',
+      category: item.category || '市场监管类',
+      categoryId: item.categoryId || 'cat-001-01',
+      department: item.department || '省政务服务管理局',
+      departmentId: item.departmentId || 'dept-zz',
+      level: (item.level as ItemLevel) || 'provincial',
+      status: 'draft',
+      templateId: item.templateId,
+      templateName: item.templateName,
+      standardSource: item.standardSource || '国家标准',
+      createdAt: now,
+      updatedAt: now,
+      createdBy: item.createdBy || '当前用户',
+      updatedBy: '当前用户',
+      currentVersion: item.currentVersion || 'v0.1',
+      progress: 10,
+      basicInfo: item.basicInfo || {
+        serviceType: '行政许可',
+        serviceObject: '公民、法人或其他组织',
+        serviceMode: ['网上办理', '窗口办理'],
+        legalBasis: [],
+        handlingBasis: '',
+        consultationPhone: '020-12345',
+        complaintPhone: '020-12345',
+        handlingLocation: '政务服务中心',
+        handlingTime: '工作日',
+      },
+      conditions: item.conditions || [],
+      materials: item.materials || [],
+      process: item.process || [],
+      timeLimit: item.timeLimit || {
+        legalDays: 20,
+        promiseDays: 10,
+        remark: '',
+      },
+      fee: item.fee || { charge: false, standard: '不收费', basis: '', items: [] },
+      scenarios: item.scenarios || [],
+      reviewRecords: item.reviewRecords || [],
+      versions: item.versions || [
+        {
+          id: id + '-ver-1',
+          version: 'v0.1',
+          status: 'draft',
+          createdBy: '当前用户',
+          createdAt: now,
+          changes: ['新建事项草稿'],
+        },
+      ],
+      ...item,
+    };
+
+    set((state) => {
+      const newDetails = { ...state.itemDetails, [id]: base };
+      const newItems: ServiceItem[] = [
+        {
+          id: base.id,
+          code: base.code,
+          name: base.name,
+          category: base.category,
+          categoryId: base.categoryId,
+          department: base.department,
+          departmentId: base.departmentId,
+          level: base.level,
+          status: base.status,
+          templateId: base.templateId,
+          templateName: base.templateName,
+          standardSource: base.standardSource,
+          createdAt: base.createdAt,
+          updatedAt: base.updatedAt,
+          createdBy: base.createdBy,
+          updatedBy: base.updatedBy,
+          currentVersion: base.currentVersion,
+          progress: base.progress,
+        },
+        ...state.items,
+      ];
+      return {
+        items: newItems,
+        itemDetails: newDetails,
+        currentItem: base,
+      };
+    });
+    return base;
+  },
+
+  addReviewRecord: (itemId, record) => {
+    set((state) => {
+      const details = { ...state.itemDetails };
+      if (details[itemId]) {
+        details[itemId] = {
+          ...details[itemId],
+          reviewRecords: [...(details[itemId].reviewRecords || []), record],
+          updatedAt: new Date().toLocaleString(),
+        };
+      }
+      return {
+        itemDetails: details,
+        currentItem:
+          state.currentItem?.id === itemId
+            ? {
+                ...state.currentItem,
+                reviewRecords: [...(state.currentItem.reviewRecords || []), record],
+                updatedAt: new Date().toLocaleString(),
+              }
+            : state.currentItem,
+      };
+    });
+  },
+
+  updateItemVersion: (id, newVersion, newStatus, publishDate) => {
+    const now = new Date().toLocaleString();
+    const publish = publishDate || new Date().toISOString().split('T')[0];
+    set((state) => {
+      const details = { ...state.itemDetails };
+      if (details[id]) {
+        const updatedVersions = (details[id].versions || []).map((v) =>
+          v.status === 'published' && newStatus !== 'archived'
+            ? { ...v, status: 'superseded' as const }
+            : v
+        );
+        const targetIdx = updatedVersions.findIndex(
+          (v) => v.version === newVersion
+        );
+        if (targetIdx >= 0) {
+          updatedVersions[targetIdx] = {
+            ...updatedVersions[targetIdx],
+            status: newStatus === 'published' ? 'published' : (updatedVersions[targetIdx].status as any),
+            publishDate:
+              newStatus === 'published' ? publish : updatedVersions[targetIdx].publishDate,
+          };
+        }
+        details[id] = {
+          ...details[id],
+          currentVersion: newVersion,
+          status: newStatus,
+          updatedAt: now,
+          versions: updatedVersions,
+        };
+      }
+
+      const items = state.items.map((i) =>
+        i.id === id
+          ? { ...i, currentVersion: newVersion, status: newStatus, updatedAt: now }
+          : i
+      );
+
+      return {
+        itemDetails: details,
+        items,
+        currentItem:
+          state.currentItem?.id === id
+            ? details[id] || state.currentItem
+            : state.currentItem,
       };
     });
   },
@@ -167,7 +447,10 @@ export const useItemStore = create<ItemState>((set, get) => ({
     }
 
     if (item.process && item.process.length > 0) {
-      const totalDuration = item.process.reduce((sum, step) => sum + step.duration, 0);
+      const totalDuration = item.process.reduce(
+        (sum, step) => sum + step.duration,
+        0
+      );
       if (item.timeLimit?.promiseDays && totalDuration > item.timeLimit.promiseDays) {
         warnings.push({
           id: 'warn-proc-1',
@@ -230,5 +513,9 @@ export const useItemStore = create<ItemState>((set, get) => ({
       }
       return true;
     });
+  },
+
+  getItemById: (id) => {
+    return get().itemDetails[id];
   },
 }));

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   GitBranch,
   Search,
@@ -25,12 +25,12 @@ import {
 import { useNavigate } from 'react-router-dom';
 import StatusBadge from '@/components/StatusBadge';
 import { useVersionStore } from '@/store/versionStore';
+import { useItemStore } from '@/store/itemStore';
 import { cn } from '@/lib/utils';
 
 export default function Version() {
   const navigate = useNavigate();
   const {
-    versionItems,
     announcements,
     successMessage,
     publishVersion,
@@ -44,10 +44,19 @@ export default function Version() {
     showCompareModal,
     compareVersions,
     closeCompareModal,
+    getVersionItems,
   } = useVersionStore();
+  const { itemDetails } = useItemStore();
 
   const [activeTab, setActiveTab] = useState<'versions' | 'announcements'>('versions');
   const [expandedItems, setExpandedItems] = useState<string[]>(['item-001']);
+  const [, forceTick] = useState(0);
+
+  const versionItems = useMemo(() => getVersionItems(), [itemDetails, successMessage]);
+
+  useEffect(() => {
+    forceTick((x) => x + 1);
+  }, [itemDetails, successMessage]);
 
   const toggleExpand = (id: string) => {
     setExpandedItems((prev) =>
@@ -56,6 +65,16 @@ export default function Version() {
   };
 
   const isExpanded = (id: string) => expandedItems.includes(id);
+
+  const stats = useMemo(() => {
+    const allVersions = versionItems.flatMap((item) => item.versions);
+    return {
+      total: allVersions.length,
+      published: allVersions.filter((v) => v.status === 'published').length,
+      draft: allVersions.filter((v) => v.status === 'draft').length,
+      reviewing: versionItems.filter((i) => i.status === 'reviewing').length,
+    };
+  }, [versionItems]);
 
   return (
     <div className="space-y-4">
@@ -75,7 +94,7 @@ export default function Version() {
             <div>
               <p className="text-sm text-slate-500">总版本数</p>
               <p className="text-2xl font-bold text-slate-800">
-                {versionItems.reduce((sum, item) => sum + item.versions.length, 0)}
+                {stats.total}
               </p>
             </div>
           </div>
@@ -88,10 +107,7 @@ export default function Version() {
             <div>
               <p className="text-sm text-slate-500">已发布版本</p>
               <p className="text-2xl font-bold text-slate-800">
-                {versionItems.reduce(
-                  (sum, item) => sum + item.versions.filter((v) => v.status === 'published').length,
-                  0
-                )}
+                {stats.published}
               </p>
             </div>
           </div>
@@ -104,10 +120,7 @@ export default function Version() {
             <div>
               <p className="text-sm text-slate-500">待发布版本</p>
               <p className="text-2xl font-bold text-slate-800">
-                {versionItems.reduce(
-                  (sum, item) => sum + item.versions.filter((v) => v.status === 'draft').length,
-                  0
-                )}
+                {stats.draft}
               </p>
             </div>
           </div>
@@ -118,8 +131,10 @@ export default function Version() {
               <AlertTriangle className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm text-slate-500">版本冲突</p>
-              <p className="text-2xl font-bold text-slate-800">2</p>
+              <p className="text-sm text-slate-500">待审校事项</p>
+              <p className="text-2xl font-bold text-slate-800">
+                {stats.reviewing}
+              </p>
             </div>
           </div>
         </div>

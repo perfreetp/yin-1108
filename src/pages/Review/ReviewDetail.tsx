@@ -25,7 +25,14 @@ import type { ReviewFlowNode, ReviewRecord } from '@/types';
 export default function ReviewDetail() {
   const { id, action } = useParams<{ id: string; action?: string }>();
   const navigate = useNavigate();
-  const { currentItem, loading, fetchItemDetail, updateItemStatus } = useItemStore();
+  const {
+    currentItem,
+    loading,
+    fetchItemDetail,
+    updateItemStatus,
+    addReviewRecord,
+    updateItemVersion,
+  } = useItemStore();
   const [reviewFlow, setReviewFlow] = useState<ReviewFlowNode[]>(mockReviewFlow);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
@@ -98,8 +105,20 @@ export default function ReviewDetail() {
       createdAt: new Date().toLocaleString('zh-CN'),
     };
     setReviewRecords([...reviewRecords, newRecord]);
+    addReviewRecord(id!, newRecord);
+
     if (currentIdx + 1 >= newFlow.length) {
-      updateItemStatus(id!, 'published');
+      const publishedVersion = currentItem.versions?.[0];
+      if (publishedVersion) {
+        updateItemVersion(
+          id!,
+          publishedVersion.version,
+          'published',
+          new Date().toISOString().split('T')[0]
+        );
+      } else {
+        updateItemStatus(id!, 'published');
+      }
       setSuccessMessage('事项已全部审校通过，已发布！');
     } else {
       setSuccessMessage('审校通过，已推进到下一节点！');
@@ -127,13 +146,14 @@ export default function ReviewDetail() {
       createdAt: new Date().toLocaleString('zh-CN'),
     };
     setReviewRecords([...reviewRecords, newRecord]);
+    addReviewRecord(id!, newRecord);
     updateItemStatus(id!, 'returned');
     setRejectReason('');
     setOpinion('');
     setSuccessMessage('已退回修改，退回意见已留痕记录');
     setTimeout(() => {
       setSuccessMessage('');
-      navigate('/compilation');
+      navigate('/review');
     }, 2000);
   };
 
